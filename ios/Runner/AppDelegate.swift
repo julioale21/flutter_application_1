@@ -11,28 +11,43 @@ import Flutter
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
         
-        // Solo observar screenshots
+        // Prevenir screenshots
+        let field = UITextField()
+        field.isSecureTextEntry = true
+        self.window?.addSubview(field)
+        field.windowLevel = UIWindow.Level.alert + 1
+        field.layer.position = CGPoint(x: -1000, y: -1000)
+        
+        // Observar cuando la app entra en background
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleScreenshot),
-            name: UIApplication.userDidTakeScreenshotNotification,
+            selector: #selector(applicationWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        
+        // Observar cuando la app vuelve al foreground
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
         
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
     
-    @objc private func handleScreenshot() {
+    @objc private func applicationWillResignActive() {
         guard let window = self.window else { return }
         
-        let view = UIView(frame: window.bounds)
-        view.backgroundColor = .white
-        window.addSubview(view)
-        
-        // Remover después de un breve momento
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            view.removeFromSuperview()
-        }
+        securityView = UIView(frame: window.bounds)
+        securityView?.backgroundColor = .black
+        window.addSubview(securityView!)
+    }
+    
+    @objc private func applicationDidBecomeActive() {
+        securityView?.removeFromSuperview()
+        securityView = nil
     }
     
     deinit {
