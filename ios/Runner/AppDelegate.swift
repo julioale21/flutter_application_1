@@ -3,21 +3,58 @@ import UIKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-    private var securityView: UIView?
+    private var secureWindow: UIWindow?
     
     override func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
-        setupScreenshotPrevention()
+        
+        // Crear una ventana segura sobre la ventana principal
+        if let mainWindow = self.window {
+            secureWindow = UIWindow(frame: mainWindow.bounds)
+            secureWindow?.windowLevel = .alert + 1
+            secureWindow?.rootViewController = SecureViewController()
+            secureWindow?.isHidden = true
+            
+            // Observar capturas de pantalla
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(screenCaptureWillBegin),
+                name: UIScreen.capturedDidChangeNotification,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(screenCaptureWillBegin),
+                name: UIApplication.userDidTakeScreenshotNotification,
+                object: nil
+            )
+        }
+        
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
     
-    private func setupScreenshotPrevention() {
-        // Crear la vista de seguridad
-        let securityView = UIView()
-        securityView.backgroundColor = .white
+    @objc private func screenCaptureWillBegin() {
+        secureWindow?.isHidden = false
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.secureWindow?.isHidden = true
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+}
+
+// Controlador para la ventana segura
+class SecureViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .white
         
         let label = UILabel()
         label.text = "Contenido Protegido"
@@ -25,37 +62,19 @@ import UIKit
         label.font = .systemFont(ofSize: 24, weight: .bold)
         label.translatesAutoresizingMaskIntoConstraints = false
         
-        securityView.addSubview(label)
+        view.addSubview(label)
         
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: securityView.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: securityView.centerYAnchor)
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
-        
-        self.securityView = securityView
-        
-        // Configurar la prevención
-        if let window = self.window {
-            window.makeSecure()
-        }
     }
-}
-
-// Extensión para hacer la ventana segura
-extension UIWindow {
-    func makeSecure() {
-        // Prevenir capturas de pantalla
-        DispatchQueue.main.async {
-            self.isHidden = false
-            self.layer.superlayer?.addSublayer(CALayer())
-            self.layer.speed = 0.0
-            
-            // Esto hace que la captura de pantalla muestre un fondo negro
-            let field = UITextField()
-            field.isSecureTextEntry = true
-            self.addSubview(field)
-            
-            field.layer.isHidden = true
-        }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Prevenir grabación de pantalla
+        let textField = UITextField()
+        textField.isSecureTextEntry = true
+        view.addSubview(textField)
     }
 }
